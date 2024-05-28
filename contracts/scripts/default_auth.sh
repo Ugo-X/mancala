@@ -2,33 +2,27 @@
 set -euo pipefail
 pushd $(dirname "$0")/..
 
-need_cmd() {
-  if ! check_cmd "$1"; then
-    printf "need '$1' (command not found)"
-    exit 1
-  fi
-}
-
-check_cmd() {
-  command -v "$1" &>/dev/null
-}
-
-need_cmd jq
-
-# export RPC_URL="http://localhost:5050"
+export RPC_URL="https://api.cartridge.gg/x/mancala/katana"
 
 export WORLD_ADDRESS=$(cat ./manifests/dev/manifest.json | jq -r '.world.address')
 
+export ACTIONS_ADDRESS=$(cat ./manifests/dev/manifest.json | jq -r '.contracts[] | select(.kind == "DojoContract" ).address')
+
 echo "---------------------------------------------------------------------------"
-echo world : $WORLD_ADDRESS
+echo world : $WORLD_ADDRESS 
+echo " "
+echo actions : $ACTIONS_ADDRESS
 echo "---------------------------------------------------------------------------"
 
-# enable system -> models authorizations
-sozo auth grant --world $WORLD_ADDRESS --wait writer \
-  Player,mancala::systems::actions::actions\
-  GamePlayer,mancala::systems::actions::actions\
-  GameId,mancala::systems::actions::actions\
-  MancalaGame,mancala::systems::actions::actions\
-  >/dev/null
+# List of the models.
+MODELS=("Player" "GamePlayer" "GameId" "MancalaGame")
+
+AUTH_MODELS=""
+# Give permission to the action system to write on all the models.
+for component in ${MODELS[@]}; do
+    AUTH_MODELS+="$component,$ACTIONS_ADDRESS "
+done
+
+sozo auth grant writer $AUTH_MODELS
 
 echo "Default authorizations have been successfully set."
